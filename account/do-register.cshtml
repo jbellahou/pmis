@@ -1,0 +1,36 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    bool userExists = (WebSecurity.UserExists(Request.Form["user_name"]));
+    if (!userExists)
+    {
+        if (Request.Form["password"] == Request.Form["confirm"])
+        {
+            WebSecurity.CreateUserAndAccount(Request.Form["user_name"], Request.Form["password"], new { first_name = Request.Form["fname"], last_name = Request.Form["lname"] });
+            var db = Database.Open("pmis");
+            string queryString = "select count(id) from users";
+            int numUsers = db.QueryValue(queryString);
+            if (numUsers == 1)
+            {
+                Roles.CreateRole("admin");
+                Roles.AddUserToRole(Request.Form["user_name"], "admin");
+            }
+        }
+    }
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Register Result</h3>
+    </div>
+
+    @if (userExists)
+    {
+        <div class="alert alert-warning" role="alert"><strong>A user with that email exists in the system.</strong></div>
+        <a href="register?ReturnUrl=@Request.Form["ReturnUrl"]">Register</a>
+    }
+    else
+    {
+        <div class="alert alert-success" role="alert"><strong>User created.</strong></div>
+        <a href="login?ReturnUrl=@Request.Form["ReturnUrl"]">Login</a>
+    }
+</div>

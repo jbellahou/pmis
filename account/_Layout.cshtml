@@ -1,0 +1,64 @@
+﻿@{ 
+    bool isLoggedIn = WebSecurity.IsAuthenticated;
+    //bool isLoggedIn = true;
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Project MIS</title>
+    @RenderPage("~/Shared/load-css.cshtml")
+    @RenderPage("~/Shared/load-js.cshtml")
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark static-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img src="../Images/pmis.png" width="25" height="25" alt="">
+                Project MIS
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                <ul class="navbar-nav ml-auto">
+                    @if (isLoggedIn)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" href=@Href("~/mypmis/dashboard") title="My Project MIS"><i class="fas fa-toolbox"></i> My Project MIS</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="account/account" title="Account"><i class="fas fa-user-circle"></i> Account</a>
+                        </li>
+                        if (Context.User.IsInRole("admin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" href=@Href("~/admin/users") title="Administration"><i class="fas fa-users-cog"></i> Administration</a>
+                            </li>
+                        }
+                        <li class="nav-item">
+                            <a class="nav-link" href=@Href("~/account/logout") title="Logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" href=@Href("~/account/login") title="Login"><i class="fas fa-sign-in-alt"></i> Login</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <br />
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+        <footer>
+            <p>&copy; 2019 - Project MIS</p>
+        </footer>
+    </div>
+</body>
+</html>

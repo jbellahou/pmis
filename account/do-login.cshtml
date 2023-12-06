@@ -1,0 +1,30 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    bool remember = (Request.Form["rememberme"] == "forever");
+    bool success = WebSecurity.Login(Request.Form["user_name"], Request.Form["password"], remember);
+    if (success)
+    {
+        if (remember) { Response.Cookies[0].Expires = DateTime.Now.AddDays(1); }
+        string returnUrl = Request.Form["ReturnUrl"];
+        if (!returnUrl.IsEmpty())
+        {
+            Response.Redirect(returnUrl);
+        }
+    }
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Login Result</h3>
+    </div>
+    @if (!success)
+    {
+        <div class="alert alert-danger" role="alert"><strong>User name or password is incorrect.</strong></div>
+        <a href="login">Login</a>
+    }
+    else
+    {
+        <div class="alert alert-success" role="alert"><strong>User logged in.</strong></div>
+        <a href=@Href("~/mypmis/dashboard")>My Dashboard</a>
+    }
+</div>

@@ -1,0 +1,42 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    bool validUser = WebSecurity.UserExists(Request.Form["user_name"]);
+    string errMsg = "";
+    bool success = true;
+    if (validUser)
+    {
+        string token = WebSecurity.GeneratePasswordResetToken(Request.Form["user_name"]);
+        string txtEmail = Request.Form["user_name"];
+        string txtLink = "https://projectmis.org/account/reset-password";
+        txtLink = txtLink + "?token=" + token;
+        string txtBody = "<a href='" + txtLink + "'>" + txtLink + "</a>";
+        try
+        {
+            // Send email
+            WebMail.Send(to: txtEmail, subject: "Reset password on Project MIS", body: txtBody);
+        }
+        catch (Exception ex)
+        {
+            success = false;
+            errMsg = ex.Message.ToString();
+        }
+    }
+}
+<div class="container">
+    @if (!validUser)
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>No registered user exists with that email address.</div>
+    }
+    else
+    {
+        if (!success)
+        {
+            <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+        }
+        else
+        {
+            <div class="alert alert-success" role="alert"><strong>An email was sent with a reset link.</strong></div>
+        }
+    }
+</div>

@@ -1,0 +1,77 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Edit":
+                try
+                {
+                    success = db.Execute("update users set last_name=@0, first_name=@1 where id=@2", Request.Form["lname"], Request.Form["fname"], WebSecurity.CurrentUserId);
+                    successMsg = "Account information updated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Change Password":
+                try
+                {
+                    bool isChanged = WebSecurity.ChangePassword(WebSecurity.CurrentUserName, Request.Form["password"], Request.Form["new-password"]);
+                    if (isChanged)
+                    {
+                        success = 1;
+                        successMsg = "Password changed.";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select * from users where id=@0";
+    var row = db.QuerySingle(selectQueryString, WebSecurity.CurrentUserId);
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Account Information</h3>
+    </div>
+    <form method="post" action="account" data-parsley-validate>
+        <div class="form-group row">
+            <label for="user_name">User Name (email address)</label>
+            <input type="email" class="form-control" name="user_name" id="user_name" disabled value="@row["email"]">
+        </div>
+        <div class="form-group row">
+            <label for="fname">First Name</label>
+            <input type="text" class="form-control" name="fname" id="fname" autofocus required value="@row["first_name"]" data-parsley-required>
+        </div>
+        <div class="form-group row">
+            <label for="lname">Last Name</label>
+            <input type="text" class="form-control" name="lname" id="lname" required value="@row["last_name"]" data-parsley-required>
+        </div>
+        <div class="form-group row">
+            <button class="btn btn-primary" type="submit" title="Save" name="SaveType" value="Edit"><i class="fas fa-save"></i></button>
+        </div>
+    </form>
+    <a href="change-password">Change password</a>
+</div>

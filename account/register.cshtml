@@ -1,0 +1,33 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Register</h3>
+    </div>
+    <form method="post" action="do-register" data-parsley-validate>
+        <div class="form-group row">
+            <label for="user_name">User Name (email address) </label>
+            <input type="email" class="form-control" name="user_name" id="user_name" autofocus required data-parsley-required data-parsley-type="email">
+        </div>
+        <div class="form-group row">
+            <label for="password">Password </label>
+            <input type="password" class="form-control" name="password" id="password" required data-parsley-required>
+        </div>
+        <div class="form-group row">
+            <label for="confirm">Confirm Password </label>
+            <input type="password" class="form-control" name="confirm" id="confirm" required data-parsley-required data-parsley-equalto="#password">
+        </div>
+        <div class="form-group row">
+            <label for="fname">First Name </label>
+            <input type="text" class="form-control" name="fname" id="fname" require data-parsley-requiredd>
+        </div>
+        <div class="form-group row">
+            <label for="lname">Last Name </label>
+            <input type="text" class="form-control" name="lname" id="lname" required data-parsley-required>
+        </div>
+        <div class="form-group row">
+            <input type="hidden" name="ReturnUrl" value="@Request.QueryString["ReturnUrl"]" />
+            <button class="btn btn-primary" type="submit">Register</button>
+        </div>
+    </form>
+</div>
