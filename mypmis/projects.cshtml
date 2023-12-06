@@ -1,0 +1,69 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    string selectQueryString = @"select id, project_name, description from projects p where is_active=1 and 
+        (organization_id in (select organization_id from organization_administrators where user_id=@0) or 
+        id in (select project_id from project_administrators where user_id=@1) or 
+        id in (select project_id from project_resources where resource_id in (select id from resources where user_id=@2)) or 
+        id in (select project_id from project_stakeholders where stakeholder_id in (select id from stakeholders where user_id=@3))) 
+        order by (select max(access_time) from user_logs where get_id=p.id and section='Project') desc";
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Projects</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, WebSecurity.CurrentUserId, WebSecurity.CurrentUserId, WebSecurity.CurrentUserId, WebSecurity.CurrentUserId))
+                {
+                <tr>
+                    <td>@row.project_name</td>
+                    <td>@Html.Raw(row.description)</td>
+                    <td>
+                        <form method="post" action="work-hours">
+                            <input type="hidden" name="pid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" title="Work Hours"><i class="fas fa-clock"></i></button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" action="expenses">
+                            <input type="hidden" name="pid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" title="Expenses"><i class="fas fa-file-invoice-dollar"></i></button>
+                        </form>
+                    </td>
+                    <td>
+                        <a class="btn btn-primary" role="button" href=@Href("~/project/dashboard?id=" + row.id) title="Manage"><i class="fas fa-info-circle"></i></a>
+                    </td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

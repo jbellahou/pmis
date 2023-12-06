@@ -1,0 +1,16 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Add Organization</h3>
+    </div>
+    <form method="post" action="organizations" data-parsley-validate>
+        <div class="form-group row">
+            <label for="oname">Organization Name</label>
+            <input type="text" class="form-control" name="oname" id="oname" autofocus required data-parsley-required>
+        </div>
+        <div class="form-group row">
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Add" title="Save"><i class="fas fa-save"></i></button>
+        </div>
+    </form>
+</div>

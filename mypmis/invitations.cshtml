@@ -1,0 +1,149 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Accept":
+                try
+                {
+                    switch (Request.Form["itype"])
+                    {
+                        case "Stakeholder":
+                            db.Execute("update stakeholders set user_id=@0 where id=(select stakeholder_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            db.Execute("update resources set user_id=@0 where id=(select resource_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            break;
+                        case "Project Stakeholder":
+                            db.Execute("update stakeholders set user_id=@0 where id=(select stakeholder_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            db.Execute("update resources set user_id=@0 where id=(select resource_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            break;
+                        case "Resource":
+                            db.Execute("update stakeholders set user_id=@0 where id=(select stakeholder_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            db.Execute("update resources set user_id=@0 where id=(select resource_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            break;
+                        case "Project Resource":
+                            db.Execute("update stakeholders set user_id=@0 where id=(select stakeholder_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            db.Execute("update resources set user_id=@0 where id=(select resource_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            break;
+                        case "Organization Administrator":
+                            db.Execute("insert into organization_administrators (user_id, organization_id) values (@0, @1)", WebSecurity.CurrentUserId, Request.Form["oid"]);
+                            db.Execute("update stakeholders set user_id=@0 where id=(select stakeholder_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            db.Execute("update resources set user_id=@0 where id=(select resource_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            string roleName = "edit_organization_" + Request.Form["oid"];
+                            Roles.AddUserToRole(WebSecurity.CurrentUserName, roleName);
+                            break;
+                        case "Project Administrator":
+                            db.Execute("insert into project_administrators (user_id, project_id) values (@0, @1)", WebSecurity.CurrentUserId, Request.Form["pid"]);
+                            db.Execute("update stakeholders set user_id=@0 where id=(select stakeholder_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            db.Execute("update resources set user_id=@0 where id=(select resource_id from invitations where id=@1)", WebSecurity.CurrentUserId, Request.Form["iid"]);
+                            string projRoleName = "edit_project_" + Request.Form["pid"];
+                            Roles.AddUserToRole(WebSecurity.CurrentUserName, projRoleName);
+                            break;
+                        case "Document":
+                            db.Execute("insert into document_users (user_id, document_id) values (@0, @1)", WebSecurity.CurrentUserId, Request.Form["did"]);
+                            break;
+                    }
+                    TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+                    DateTime newDT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+                    success = db.Execute("update invitations set accepted=1, time_accepted=@0 where id=@1", newDT, Request.Form["iid"]);
+                    successMsg = "Invitation accepted.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select i.*, concat(first_name, ' ', last_name) as full_name from invitations i join users u on u.id=i.user_id where i.email=@0 and accepted=0";
+}
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Invitations</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Invited to</th>
+                    <th>Invited by</th>
+                    <th>Sent</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, WebSecurity.CurrentUserName))
+                {
+                    <tr>
+                        @{
+                            string partin = "";
+                            string partval = "";
+                            string itype = row.invitation_type;
+                            switch (itype)
+                            {
+                                case "Stakeholder":
+                                    partin = "Organization";
+                                    partval = db.QueryValue("select organization_name from organizations where id=@0", row.organization_id);
+                                    break;
+                                case "Project Stakeholder":
+                                    partin = "Project";
+                                    partval = db.QueryValue("select project_name from projects where id=@0", row.project_id);
+                                    break;
+                                case "Resource":
+                                    partin = "Organization";
+                                    partval = db.QueryValue("select organization_name from organizations where id=@0", row.organization_id);
+                                    break;
+                                case "Project Resource":
+                                    partin = "Project";
+                                    partval = db.QueryValue("select project_name from projects where id=@0", row.project_id);
+                                    break;
+                                case "Organization Administrator":
+                                    partin = "Organization";
+                                    partval = db.QueryValue("select organization_name from organizations where id=@0", row.organization_id);
+                                    break;
+                                case "Project Administrator":
+                                    partin = "Project";
+                                    partval = db.QueryValue("select project_name from projects where id=@0", row.project_id);
+                                    break;
+                                case "Document":
+                                    partin = "Document";
+                                    partval = db.QueryValue("select document_name from documents where id=@0", row.document_id);
+                                    break;
+                            }
+                        }
+                        <td>@partin: @partval</td>
+                        <td>@row.full_name</td>
+                        <td>@row.time_sent</td>
+                        <td>
+                            <form method="post" action="invitations">
+                                <input type="hidden" name="iid" value="@row.id" />
+                                <input type="hidden" name="oid" value="@row.organization_id" />
+                                <input type="hidden" name="pid" value="@row.project_id" />
+                                <input type="hidden" name="did" value="@row.document_id" />
+                                <input type="hidden" name="itype" value="@itype" />
+                                <button class="btn btn-primary" type="submit" name="SaveType" value="Accept">Accept Invitation</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

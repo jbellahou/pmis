@@ -1,0 +1,125 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string orgQueryString = "select top 5 id, organization_name from organizations o join organization_administrators oa on oa.organization_id=o.id where oa.user_id=@0 order by (select max(access_time) from user_logs where get_id=o.id and section='Organization') desc";
+    string projQueryString = @"select top 5 id, project_name, description from projects p where is_active=1 and 
+        (organization_id in (select organization_id from organization_administrators where user_id=@0) or 
+        id in (select project_id from project_administrators where user_id=@1)) 
+        order by (select max(access_time) from user_logs where get_id=p.id and section='Project') desc";
+    string docQueryString = "select top 5 id, document_name, document_date, document_type from documents d join document_users du on du.document_id=d.id where user_id=@0 order by document_date desc";
+    string invQueryString = "select i.*, concat(first_name, ' ', last_name) as full_name from invitations i join users u on u.id=i.user_id where i.email=@0 and accepted=0";
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h2 class="pmis-detail-page-title">Dashboard</h2>
+    </div>
+    @foreach (var row in db.Query(invQueryString, WebSecurity.CurrentUserName))
+    {
+        string partin = "";
+        string partval = "";
+        string itype = row.invitation_type;
+        switch (itype)
+        {
+            case "Stakeholder":
+                partin = "Organization";
+                partval = db.QueryValue("select organization_name from organizations where id=@0", row.organization_id);
+                break;
+            case "Project Stakeholder":
+                partin = "Project";
+                partval = db.QueryValue("select project_name from projects where id=@0", row.project_id);
+                break;
+            case "Resource":
+                partin = "Organization";
+                partval = db.QueryValue("select organization_name from organizations where id=@0", row.organization_id);
+                break;
+            case "Project Resource":
+                partin = "Project";
+                partval = db.QueryValue("select project_name from projects where id=@0", row.project_id);
+                break;
+            case "Organization Administrator":
+                partin = "Organization";
+                partval = db.QueryValue("select organization_name from organizations where id=@0", row.organization_id);
+                break;
+            case "Project Administrator":
+                partin = "Project";
+                partval = db.QueryValue("select project_name from projects where id=@0", row.project_id);
+                break;
+            case "Document":
+                partin = "Document";
+                partval = db.QueryValue("select document_name from documents where id=@0", row.document_id);
+                break;
+        }
+    <div class="alert alert-primary" role="alert">
+        You have been invited by @row.full_name to participate in the @partin, @partval (invitation sent @row.time_sent).
+        <form class="pmis-right" method="post" action="invitations">
+            <input type="hidden" name="iid" value="@row.id" />
+            <input type="hidden" name="oid" value="@row.organization_id" />
+            <input type="hidden" name="pid" value="@row.project_id" />
+            <input type="hidden" name="did" value="@row.document_id" />
+            <input type="hidden" name="itype" value="@itype" />
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Accept">Accept Invitation</button>
+        </form>
+    </div>
+    }
+    <div class="row">
+        <div class="col-md-6 col-lg-4">
+            <h3>Organizations</h3>
+            <div class="list-group">
+                @foreach (var row in db.Query(orgQueryString, WebSecurity.CurrentUserId))
+                {
+                    <a class="list-group-item list-group-item-action" href=@Href("~/organization/dashboard?id=" + row.id)>@row.organization_name</a>
+                }
+                <a class="list-group-item list-group-item-action pmis-list-button" href="organizations">All Organizations</a>
+                <a class="list-group-item list-group-item-action pmis-list-button" href="add-organization">Create New Organization</a>
+            </div>
+            <br />
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <h3>Projects</h3>
+            <div class="list-group">
+                @foreach (var row in db.Query(projQueryString, WebSecurity.CurrentUserId, WebSecurity.CurrentUserId))
+                {
+                    <a class="list-group-item list-group-item-action" href=@Href("~/project/dashboard?id=" + row.id)>@row.project_name</a>
+                }
+                <a class="list-group-item list-group-item-action pmis-list-button" href="projects">All Projects</a>
+            </div>
+            <br />
+        </div>
+        <div class="col-md-6 col-lg-4">
+            <h3>Documents</h3>
+            <div class="list-group">
+                @foreach (var row in db.Query(docQueryString, WebSecurity.CurrentUserId))
+                {
+                    string dType = row.document_type;
+                    string docUrl = "";
+                    switch (dType)
+                    {
+                        case "External Document":
+                            docUrl = db.QueryValue("select url from external_documents where id=@0", row.id);
+                            break;
+                        case "Internal Tool":
+                            string intTool = db.QueryValue("select code_file from internal_tools where id=@0", row.id);
+                            docUrl = @Href(intTool);
+                            break;
+                        case "Manual Document":
+                            string manDoc = "~/document/view?id=" + row.id;
+                            docUrl = @Href(manDoc);
+                            break;
+                    }
+
+                    /**/
+
+#line default
+#line hidden
+
+#line 24 "C:\Users\bell0069\Dropbox\Research\2019-03 PMIS Revision\interserver\mypmis\dashboard.cshtml"
+                    /**/
+                    <a class="list-group-item list-group-item-action" href=@docUrl target="_blank">@row.document_name - @row.document_date</a>
+                }
+                <a class="list-group-item list-group-item-action pmis-list-button" href="documents">All Documents</a>
+            </div>
+            <br />
+        </div>
+    </div>
+</div>

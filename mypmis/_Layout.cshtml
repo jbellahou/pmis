@@ -1,0 +1,165 @@
+﻿@{
+    var db = Database.Open("pmis");
+    string pagePath = Request.Url.AbsolutePath;
+    TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+    DateTime newDT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+    string section = "My Project MIS";
+    if (String.IsNullOrEmpty(Request.Form["section"]))
+    {
+        section = Request.Form["section"];
+    }
+    if (String.IsNullOrEmpty(Request.Form["id"]))
+    {
+        db.Execute("insert into user_logs (user_id, access_time, page, section) values (@0, @1, @2, @3)", WebSecurity.CurrentUserId, newDT, pagePath, section);
+    }
+    else
+    {
+        db.Execute("insert into user_logs (user_id, get_id, access_time, page, section) values (@0, @1, @2, @3, @4)", WebSecurity.CurrentUserId, Request.Form["id"], newDT, pagePath, section);
+    }
+
+    string dashLinkClass = "";
+    string orgLinkClass = "";
+    string projLinkClass = "";
+    string msgLinkClass = "";
+    string taskLinkClass = "";
+    string invLinkClass = "";
+    string docLinkClass = "";
+    switch (pagePath)
+    {
+        case "/mypmis/dashboard":
+            dashLinkClass = "active";
+            break;
+        case "/mypmis/organizations":
+            orgLinkClass = "active";
+            break;
+        case "/mypmis/projects":
+            projLinkClass = "active";
+            break;
+        case "/mypmis/messages":
+            msgLinkClass = "active";
+            break;
+        case "/mypmis/tasks":
+            taskLinkClass = "active";
+            break;
+        case "/mypmis/invitations":
+            invLinkClass = "active";
+            break;
+        case "/mypmis/documents":
+            docLinkClass = "active";
+            break;
+    }
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Project MIS</title>
+    @RenderPage("~/Shared/load-css.cshtml")
+    @RenderPage("~/Shared/load-js.cshtml")
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark static-top">
+        <div class="container">
+            <a class="navbar-brand" href=@Href("~/mypmis/dashboard")>
+                <img src="../Images/pmis.png" width="25" height="25" alt="">
+                My Project MIS
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item @dashLinkClass">
+                        <a class="nav-link" href="dashboard">
+                            Dashboard
+                            @if (dashLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item @orgLinkClass">
+                        <a class="nav-link" href="organizations">
+                            Organizations
+                            @if (orgLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item @projLinkClass">
+                        <a class="nav-link" href="projects">
+                            Projects
+                            @if (projLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item @msgLinkClass">
+                        <a class="nav-link" href="messages">
+                            Messages
+                            @if (msgLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item @taskLinkClass">
+                        <a class="nav-link" href="tasks">
+                            Tasks
+                            @if (taskLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item @docLinkClass">
+                        <a class="nav-link" href="documents">
+                            Documents
+                            @if (docLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item @invLinkClass">
+                        <a class="nav-link" href="invitations">
+                            Invitations
+                            @if (invLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href=@Href("~/account/account") title="Account"><i class="fas fa-user-circle"></i></a>
+                    </li>
+                    @if (Context.User.IsInRole("admin"))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" href=@Href("~/admin/users") title="Administration"><i class="fas fa-users-cog"></i></a>
+                        </li>
+                    }
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://docs.google.com/document/d/120fclkVU3COH4KsHxn4ZmoTYmuG8FbWn7w0-PYHqbwo/edit?usp=sharing" target="_blank" title="Help"><i class="fas fa-question-circle"></i></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href=@Href("~/account/logout") title="Logout"><i class="fas fa-sign-out-alt"></i></a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <br />
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+        <footer>
+            <p>&copy; 2019 - Project MIS</p>
+        </footer>
+    </div>
+</body>
+</html>

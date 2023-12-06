@@ -1,0 +1,108 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    success = db.Execute("insert into organizations (organization_name) values (@0)", Request.Form["oname"]);
+                    successMsg = "Organization created.";
+                    decimal oid = db.GetLastInsertId();
+                    db.Execute("insert into organization_administrators (user_id, organization_id) values (@0, @1)", WebSecurity.CurrentUserId, oid);
+                    string roleName = "edit_organization_" + oid;
+                    Roles.CreateRole(roleName);
+                    Roles.AddUserToRole(WebSecurity.CurrentUserName, roleName);
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Edit":
+                try
+                {
+                    success = db.Execute("update organizations set organization_name = @0 where id=@1", Request.Form["oname"], Request.Form["oid"]);
+                    successMsg = "Organization updated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    success = db.Execute("delete from organizations where id=@0", Request.Form["oid"]);
+                    successMsg = "Organization deleted.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select * from organizations o join organization_administrators oa on oa.organization_id=o.id where oa.user_id=@0 order by (select max(access_time) from user_logs where get_id=o.id and section='Organization') desc";
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Organizations</h3>
+        <a href="add-organization" class="pmis-detail-page-new-link" title="New Organization"><i class="fas fa-plus"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, WebSecurity.CurrentUserId))
+                {
+                    <tr>
+                        <td>@row.organization_name</td>
+                        <td>
+                            <form method="post" action="edit-organization">
+                                <input type="hidden" name="oid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" title="Edit"><i class="fas fa-edit"></i></button>
+                            </form>
+                        </td>
+                        <td>
+                            <a class="btn btn-primary" role="button" href=@Href("~/organization/dashboard?id=" + row.id) title="Manage"><i class="fas fa-info-circle"></i></a>
+                        </td>
+                        <td>
+                            <form method="post" action="organizations">
+                                <input type="hidden" name="oid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
