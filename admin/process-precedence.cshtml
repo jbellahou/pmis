@@ -1,0 +1,96 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    success = db.Execute("insert into preceding_processes (preceding_id, process_id) values (@0, @1)", Request.Form["precid"], Request.Form["pid"]);
+                    successMsg = "Process added.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Remove":
+                try
+                {
+                    success = db.Execute("delete from preceding_processes where preceding_id=@0 and process_id=@1", Request.Form["precid"], Request.Form["pid"]);
+                    successMsg = "Process removed.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string procName = db.QueryValue("select process_name from processes where id=@0", Request.Form["pid"]);
+}
+
+@if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Preceding Processes for @procName</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Process</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query("select p.id, p.process_name from processes p join preceding_processes pp on pp.preceding_id=p.id where pp.process_id=@0 order by p.sort_order", Request.Form["pid"]))
+                {
+                    <tr>
+                        <td>@row.process_name</td>
+                        <td>
+                            <form method="post" action="process-precedence">
+                                <input type="hidden" name="pid" value="@Request.Form["pid"]">
+                                <input type="hidden" name="precid" value="@row.id">
+                                <button type="submit" class="btn btn-primary" name="SaveType" value="Remove" title="Remove"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <form method="post" action="process-precedence" data-parsley-validate>
+        <select class="form-control" name="precid">
+            @{ int counter = 0; }
+            @foreach (var procRow in db.Query("select process_name, id from processes where id not in (select preceding_id from preceding_processes where process_id=@0) and id!=@1 order by sort_order", Request.Form["pid"], Request.Form["pid"]))
+            {
+                counter += 1;
+                <option value="@procRow.id">@procRow.process_name</option>
+            }
+        </select>
+        <input type="hidden" name="pid" value="@Request.Form["pid"]">
+        @if (counter > 0)
+        {
+            <button type="submit" class="btn btn-primary" name="SaveType" value="Add" title="Add Preceding Process"><i class="fas fa-plus-circle"></i></button>
+        }
+    </form>
+</div>

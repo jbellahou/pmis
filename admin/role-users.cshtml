@@ -1,0 +1,105 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    bool isPostBack = false;
+    if (IsPost)
+    {
+        isPostBack = !String.IsNullOrEmpty(Request.Form["SaveType"]);
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    Roles.AddUserToRole(Request.Form["uname"], Request.Form["rname"]);
+                    success = 1;
+                    successMsg = "User " + (Request.Form["uname"]) + " added to Role (" + Request.Form["rname"] + ").";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    Roles.RemoveUserFromRole(Request.Form["uname"], Request.Form["rname"]);
+                    success = 1;
+                    successMsg = "User (" + Request.Form["uname"] + ") removed from Role (" + Request.Form["rname"] + ").";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select id, email, first_name, last_name from users u join webpages_UsersInRoles ur on u.id=ur.UserId where ur.RoleId=@0 order by last_name, first_name";
+}
+
+@if (isPostBack)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Users in role: @Request.Form["rname"]</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, @Request.Form["rid"]))
+                {
+                    <tr>
+                        <td>@row.first_name @row.last_name - @row.email</td>
+                        <td>
+                            <form method="post" action="role-users">
+                                <input type="hidden" name="rname" value="@Request.Form["rname"]" />
+                                <input type="hidden" name="rid" value="@Request.Form["rid"]" />
+                                <input type="hidden" name="uname" value="@row.email" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Remove user from this role"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @{
+        string usersQueryString = "select id, email, first_name, last_name from users where id not in (select UserID from webpages_UsersInRoles where RoleId=@0) order by last_name, first_name";
+    }
+    <form method="post" action="role-users">
+        <div class="form-group row">
+            <label for="uname" class="pr-1">Add user to this role</label>
+            <select class="form-control" name="uname" id="uname">
+                @foreach (var row in db.Query(usersQueryString, @Request.Form["rid"]))
+                {
+                    <option value="@row.email">@row.first_name @row.last_name - @row.email</option>
+                }
+            </select>
+        </div>
+        <div class="form-group row">
+            <input type="hidden" name="rname" value="@Request.Form["rname"]" />
+            <input type="hidden" name="rid" value="@Request.Form["rid"]" />
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Add" title="Add"><i class="fas fa-plus"></i></button>
+        </div>
+    </form>
+</div>

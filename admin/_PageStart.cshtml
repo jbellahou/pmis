@@ -1,0 +1,7 @@
+﻿@{
+    WebSecurity.RequireAuthenticatedUser();
+    if (!Context.User.IsInRole("admin"))
+    {
+        Response.Redirect("~/account/unauthorized");
+    }
+}

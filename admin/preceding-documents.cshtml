@@ -1,0 +1,96 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    success = db.Execute("insert into preceding_documents (defined_document_id, process_id) values (@0, @1)", Request.Form["did"], Request.Form["pid"]);
+                    successMsg = "Document added.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Remove":
+                try
+                {
+                    success = db.Execute("delete from preceding_documents where defined_document_id=@0 and process_id=@1", Request.Form["did"], Request.Form["pid"]);
+                    successMsg = "Document removed.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string procName = db.QueryValue("select process_name from processes where id=@0", Request.Form["pid"]);
+}
+
+@if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Preceding Documents for @procName</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Document</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query("select d.id, d.defined_name from defined_documents d join preceding_documents pd on pd.defined_document_id=d.id where pd.process_id=@0 order by defined_name", Request.Form["pid"]))
+                {
+                    <tr>
+                        <td>@row.defined_name</td>
+                        <td>
+                            <form method="post" action="preceding-documents">
+                                <input type="hidden" name="pid" value="@Request.Form["pid"]">
+                                <input type="hidden" name="did" value="@row.id">
+                                <button type="submit" class="btn btn-primary" name="SaveType" value="Remove" title="Remove"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <form method="post" action="preceding-documents" data-parsley-validate>
+        <select class="form-control" name="did" autofocus>
+            @{ int counter = 0; }
+            @foreach (var docRow in db.Query("select defined_name, id from defined_documents where id not in (select defined_document_id from preceding_documents where process_id=@0) order by defined_name", Request.Form["pid"]))
+            {
+                counter += 1;
+                <option value="@docRow.id">@docRow.defined_name</option>
+            }
+        </select>
+        <input type="hidden" name="pid" value="@Request.Form["pid"]">
+        @if (counter > 0)
+        {
+            <button type="submit" class="btn btn-primary" name="SaveType" value="Add" title="Add Preceding Document"><i class="fas fa-plus-circle"></i></button>
+        }
+    </form>
+</div>

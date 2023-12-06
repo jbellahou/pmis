@@ -1,0 +1,161 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    int isCustom = 0;
+                    if (Request.Form["iscustom"] == "on") { isCustom = 1; }
+                    success = db.Execute("insert into defined_documents (defined_name, is_custom) values (@0, @1)", Request.Form["dname"], isCustom);
+                    successMsg = "Document created.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Edit":
+                try
+                {
+                    int isCustom = 0;
+                    if (Request.Form["iscustom"] == "on") { isCustom = 1; }
+                    success = db.Execute("update defined_documents set defined_name = @0, is_custom=@1 where id=@2", Request.Form["dname"], isCustom, Request.Form["did"]);
+                    successMsg = "Document updated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    success = db.Execute("delete from defined_documents where id=@0", Request.Form["did"]);
+                    successMsg = "Document deleted.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select * from defined_documents order by defined_name";
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<!-- The Modal -->
+<div class="modal" id="myModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <h4 class="modal-title" id="myModalTitle">Add Defined Document</h4>
+                <button type="button" class="close" data-dismiss="modal" id="closeMyModal">&times;</button>
+            </div>
+            <!-- Modal body -->
+            <div class="modal-body">
+                <form method="post" action="" data-parsley-validate>
+                    <div class="form-group row">
+                        <label for="dname">Name</label>
+                        <input type="text" class="form-control" name="dname" id="dname" autofocus required data-parsley-required>
+                    </div>
+                    <div class="form-check row">
+                        <input type="checkbox" class="form-check-input" id="iscustom" name="iscustom">
+                        <label class="form-check-label" for="iscustom">Custom Tool</label>
+                    </div>
+                    <div class="form-group row">
+                        <input type="hidden" name="did" id="did" />
+                        <button class="btn btn-primary" type="submit" name="SaveType" id="SaveType" value="Add" title="Save"><i class="fas fa-save"></i></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Defined Documents</h3>
+        <!-- Button to Open the Modal -->
+        <button type="button" class="btn btn-primary pmis-detail-page-new-link" data-toggle="modal" data-target="#myModal"><i class="fas fa-plus"></i></button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Custom Tool</th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString))
+                {
+                    string icDisplay = "No";
+                    if (row.is_custom) {
+                        icDisplay = "Yes";
+                    }
+                    <tr>
+                        <td>@row.defined_name</td>
+                        <td>@icDisplay</td>
+                        <td>
+                            <button class="btn btn-primary my-edit" data-dname="@row.defined_name" data-iscustom="@row.is_custom" data-did="@row.id" type="button" title="Edit"><i class="fas fa-edit"></i></button>
+                        </td>
+                        <td>
+                            <form method="post" action="defined-documents">
+                                <input type="hidden" name="did" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    $(document).ready(function () {
+        // jQuery methods go here...
+        $(".my-edit").click(function () {
+            $('#myModal').modal('show');
+            $("#myModalTitle").text("Edit Defined Document");
+            $("#dname").val(this.getAttribute("data-dname"));
+            if (this.getAttribute("data-iscustom") == "True") {
+                $("#iscustom").prop('checked', true);
+            } else {
+                $("#iscustom").prop('checked', false);
+            }
+            $("#did").val(this.getAttribute("data-did"));
+            $("#SaveType").val("Edit");
+        });
+        $("#closeMyModal").click(function () {
+            $("#myModalTitle").text("Add Defined Document");
+            $("#dname").val("");
+            $("#iscustom").prop('checked', false);
+            $("#did").val("");
+            $("#SaveType").val("Add");
+        });
+    });
+</script>

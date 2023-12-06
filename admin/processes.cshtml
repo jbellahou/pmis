@@ -1,0 +1,62 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string selectQueryString = "select p.*, group_name, area_name from processes p left join process_groups pg on pg.id=p.group_id left join knowledge_areas ka on ka.id=p.area_id order by p.sort_order";
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Processes</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Process Group</th>
+                    <th>Knowledge Area</th>
+                    <th>Preceding Processes</th>
+                    <th>Preceding Documents</th>
+                    <th>Produced Documents</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString))
+                {
+                    List<string> precList = new List<string>();
+                    foreach (var procRow in db.Query("select process_name from processes p join preceding_processes pp on pp.preceding_id=p.id where pp.process_id=@0", row.id))
+                    {
+                        precList.Add(procRow.process_name);
+                    }
+                    string precProcs = string.Join(", ", precList.ToArray());
+                <tr>
+                    <td>@row.process_name</td>
+                    <td>@row.group_name</td>
+                    <td>@row.area_name</td>
+                    <td>@precProcs</td>
+                    <td>
+                        <form method="post" action="preceding-documents">
+                            <input type="hidden" name="pid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" title="Preceding Documents"><i class="fas fa-file"></i></button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" action="produced-documents">
+                            <input type="hidden" name="pid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" title="Produced Documents"><i class="fas fa-file"></i></button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" action="process-precedence">
+                            <input type="hidden" name="pid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" title="Process Precedence"><i class="fas fa-project-diagram"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

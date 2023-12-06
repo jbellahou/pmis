@@ -1,0 +1,71 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    Roles.CreateRole(Request.Form["rname"]);
+                    success = 1;
+                    successMsg = "Role created.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select r.RoleId, RoleName, count(UserId) as num_users from webpages_Roles r left join webpages_UsersInRoles ur on r.RoleId=ur.RoleId group by r.RoleId, RoleName order by RoleName";
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Roles</h3>
+        <a href="add-role" class="pmis-detail-page-new-link" title="New Role"><i class="fas fa-plus"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Role</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString))
+                {
+                    <tr>
+                        <td>@row.RoleName</td>
+                        <td>
+                            <form method="post" action="role-users">
+                                <input type="hidden" name="rid" value="@row.RoleId" />
+                                <input type="hidden" name="rname" value="@row.RoleName" />
+                                <button class="btn btn-primary" type="submit">Users (@row.num_users)</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
