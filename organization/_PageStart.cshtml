@@ -1,0 +1,7 @@
+﻿@{
+    WebSecurity.RequireAuthenticatedUser();
+    if (!Context.User.IsInRole("edit_organization_" + Request.QueryString["id"]))
+    {
+        Response.Redirect("~/account/unauthorized");
+    }
+}

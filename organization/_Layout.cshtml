@@ -1,0 +1,153 @@
+﻿@{
+    var db = Database.Open("pmis");
+    string pagePath = Request.Url.AbsolutePath;
+    TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+    DateTime newDT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+    db.Execute("insert into user_logs (user_id, get_id, access_time, page, section) values (@0, @1, @2, @3, 'Organization')", WebSecurity.CurrentUserId, Request.QueryString["id"], newDT, pagePath);
+
+    string stakeLinkClass = "";
+    string resoLinkClass = "";
+    string dashLinkClass = "";
+    string adminLinkClass = "";
+    string projLinkClass = "";
+    string progLinkClass = "";
+    string invLinkClass = "";
+    string docLinkClass = "";
+    switch (pagePath)
+    {
+        case "/organization/stakeholders":
+            stakeLinkClass = "active";
+            break;
+        case "/organization/resources":
+            resoLinkClass = "active";
+            break;
+        case "/organization/dashboard":
+            dashLinkClass = "active";
+            break;
+        case "/organization/administrators":
+            adminLinkClass = "active";
+            break;
+        case "/organization/projects":
+            projLinkClass = "active";
+            break;
+        case "/organization/programs":
+            progLinkClass = "active";
+            break;
+        case "/organization/invitations":
+            invLinkClass = "active";
+            break;
+        case "/organization/documents":
+            docLinkClass = "active";
+            break;
+    }
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Project MIS Manage Organization</title>
+    @RenderPage("~/Shared/load-css.cshtml")
+    @RenderPage("~/Shared/load-js.cshtml")
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark static-top">
+        <div class="container">
+            <a class="navbar-brand" href=@Href("~/mypmis/dashboard")>
+                <img src="../Images/pmis.png" width="25" height="25" alt="">
+                My Project MIS
+            </a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarResponsive">
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item @dashLinkClass">
+                        <a class="nav-link" href="dashboard?id=@Request.QueryString["id"]">
+                            Dashboard
+                            @if (dashLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown-users" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Users
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown-users">
+                            <a class="dropdown-item" href="administrators?id=@Request.QueryString["id"]">
+                                Administrators
+                            </a>
+                            <a class="dropdown-item" href="stakeholders?id=@Request.QueryString["id"]">
+                                Stakeholders
+                            </a>
+                            <a class="dropdown-item" href="resources?id=@Request.QueryString["id"]">
+                                Resources
+                            </a>
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown-pm" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Project Management
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown-pm">
+                            <a class="dropdown-item" href="projects?id=@Request.QueryString["id"]">
+                                Projects
+                            </a>
+                            <a class="dropdown-item" href="programs?id=@Request.QueryString["id"]">
+                                Programs
+                            </a>
+                            <a class="dropdown-item" href="control-accounts?id=@Request.QueryString["id"]">
+                                Control Accounts
+                            </a>
+                        </div>
+                    </li>
+                    <li class="nav-item @invLinkClass">
+                        <a class="nav-link" href="invitations?id=@Request.QueryString["id"]">
+                            Invitations
+                            @if (invLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item @docLinkClass">
+                        <a class="nav-link" href="documents?id=@Request.QueryString["id"]">
+                            Documents
+                            @if (docLinkClass == "active")
+                            {
+                                <span class="sr-only">(current)</span>
+                            }
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href=@Href("~/account/account") title="Account"><i class="fas fa-user-circle"></i></a>
+                    </li>
+                    @if (Context.User.IsInRole("admin"))
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" href=@Href("~/admin/users") title="Administration"><i class="fas fa-users-cog"></i></a>
+                        </li>
+                    }
+                    <li class="nav-item">
+                        <a class="nav-link" href="https://docs.google.com/document/d/120fclkVU3COH4KsHxn4ZmoTYmuG8FbWn7w0-PYHqbwo/edit?usp=sharing" target="_blank" title="Help"><i class="fas fa-question-circle"></i></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href=@Href("~/account/logout") title="Logout"><i class="fas fa-sign-out-alt"></i></a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <br />
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+        <footer>
+            <p>&copy; 2019 - Project MIS</p>
+        </footer>
+    </div>
+</body>
+</html>

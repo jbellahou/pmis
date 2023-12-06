@@ -1,0 +1,205 @@
+﻿@using System.Globalization;
+@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    success = db.Execute("insert into resources (resource_name, resource_type, measurement, default_cost_per_unit, default_lead_time, is_pool, organization_id) values (@0, @1, @2, @3, @4, @5, @6)", Request.Form["rname"], Request.Form["rtype"], Request.Form["measure"], Request.Form["cpu"], Request.Form["lead"], Request.Form["ptype"], Request.QueryString["id"]);
+                    successMsg = "Resource created.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Edit":
+                try
+                {
+                    success = db.Execute("update resources set resource_name=@0, resource_type=@1, measurement=@2, default_cost_per_unit=@3, default_lead_time=@4 where id=@5", Request.Form["rname"], Request.Form["rtype"], Request.Form["measure"], Request.Form["cpu"], Request.Form["lead"], Request.Form["rid"]);
+                    successMsg = "Resource updated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    success = db.Execute("delete from resources where id=@0", Request.Form["rid"]);
+                    successMsg = "Resource deleted.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Unlink":
+                try
+                {
+                    success = db.Execute("update resources set user_id=null where id=@0", Request.Form["rid"]);
+                    successMsg = "Resource unlinked.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Link":
+                try
+                {
+                    TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+                    DateTime newDT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+                    var invRow = db.QuerySingle("select id, accepted from invitations where organization_id=@0 and email=@1", Request.QueryString["id"], Request.Form["remail"]);
+                    if (invRow != null)
+                    {
+                        if (invRow.accepted)
+                        {
+                            success = db.Execute("update resources set user_id=@0 where id=@1", WebSecurity.GetUserId(Request.Form["remail"]), Request.Form["rid"]);
+                            successMsg = "This user previously accepted an invitation to participate in the organization. Rather than sending another invitation to participate, the user was linked to the resource record.";
+                        }
+                        else
+                        {
+                            success = db.Execute("update invitations set time_sent=@0, resource_id=@1 where id=@2", newDT, Request.Form["rid"], invRow.id);
+                            successMsg = "An invitation was sent to this user previously. When the user accepts the invitation, the user will be linked to the resource.";
+                        }
+                    }
+                    else
+                    {
+                        success = db.Execute("insert into invitations (email, user_id, organization_id, resource_id, invitation_type, time_sent) values (@0, @1, @2, @3, @4, @5)", Request.Form["remail"], WebSecurity.CurrentUserId, Request.QueryString["id"], Request.Form["rid"], "Resource", newDT);
+                        successMsg = "Invitation sent.";
+                        string fromName = db.QueryValue("select concat(first_name, ' ', last_name) as full_name from users where id=@0", WebSecurity.CurrentUserId);
+                        string txtEmail = Request.Form["remail"];
+                        string txtLink = "https://projectmis.org/mypmis/invitations";
+                        string txtBody = "<p>You have been invited by " + fromName + " to participate in Project MIS, a web-based project management system. You must be registered in the system to participate. The following link will take you to your invitations in the system. If you are not registered and logged in, you will be prompted to do so.</p><a href='" + txtLink + "'>" + txtLink + "</a>";
+                        WebMail.Send(to: txtEmail, subject: "Participate in Project MIS", body: txtBody);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select r.*, email from resources r left join users u on r.user_id = u.id where organization_id=@0 order by resource_name";
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Resources</h3>
+        <a href="add-resource?id=@Request.QueryString["id"]" class="pmis-detail-page-new-link" title="New Resource"><i class="fas fa-plus"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Is Pool</th>
+                    <th>Unit of Measure</th>
+                    <th>Cost per Unit</th>
+                    <th>Lead Time</th>
+                    <th>Username</th>
+                    <th>Days Off</th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, Request.QueryString["id"]))
+                {
+                    List<string> daysOffList = new List<string>();
+                    foreach (var dayRow in db.Query("select day_name from days d join resource_no_work_days nwd on nwd.day_id=d.id where nwd.resource_id=@0", row.id))
+                    {
+                        daysOffList.Add(dayRow.day_name);
+                    }
+                    string daysOff = string.Join(", ", daysOffList.ToArray());
+                    CultureInfo ci = new CultureInfo("en-us");
+                    string isPool = "No";
+                    if (row.is_pool) { isPool = "Yes"; }
+                <tr>
+                    <td>@row.resource_name</td>
+                    <td>@row.resource_type</td>
+                    <td>@isPool</td>
+                    <td>@row.measurement</td>
+                    <td>@row.default_cost_per_unit.ToString("C", ci)</td>
+                    <td>@row.default_lead_time</td>
+                    <td>@row.email</td>
+                    <td>@daysOff</td>
+                    <td>
+                        <form method="post" action="edit-resource?id=@Request.QueryString["id"]">
+                            <input type="hidden" name="rid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" title="Edit"><i class="fas fa-edit"></i></button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" action="resource-calendar?id=@Request.QueryString["id"]">
+                            <input type="hidden" name="rid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" title="Resource Calendar"><i class="fas fa-calendar-alt"></i></button>
+                        </form>
+                    </td>
+                    @if (row.user_id > 0)
+                    {
+                        <td>
+                            <form method="post" action="resources?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="rid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Unlink" title="Unlink"><i class="fas fa-unlink"></i></button>
+                            </form>
+                        </td>
+                    }
+                    else
+                    {
+                        <td>
+                            <form method="post" action="link-resource?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="rid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" title="Link"><i class="fas fa-link"></i></button>
+                            </form>
+                        </td>
+                    }
+                        <td>
+                            @if (row.is_pool)
+                            {
+                                <form method="post" action="resource-pool?id=@Request.QueryString["id"]">
+                                    <input type="hidden" name="pid" value="@row.id" />
+                                    <button class="btn btn-primary" type="submit" title="Resource Pool Membership"><i class="fas fa-users"></i></button>
+                                </form>
+                            }
+                        </td>
+                    <td>
+                        <form method="post" action="resources?id=@Request.QueryString["id"]">
+                            <input type="hidden" name="rid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

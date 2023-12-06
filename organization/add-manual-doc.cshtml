@@ -1,0 +1,19 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Add New Manual Document</h3>
+    </div>
+    <form method="post" action="documents?id=@Request.QueryString["id"]" data-parsley-validate>
+        <div class="form-group row">
+            <label for="dname">Name</label>
+            <input type="text" class="form-control" name="dname" id="dname" autofocus required data-parsley-required>
+        </div>
+        <div class="form-group row">
+            <textarea class="summernote" name="dtext" id="dtext"></textarea>
+        </div>
+        <div class="form-group row">
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Add Manual Document" title="Save"><i class="fas fa-save"></i></button>
+        </div>
+    </form>
+</div>

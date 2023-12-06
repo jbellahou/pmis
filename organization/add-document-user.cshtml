@@ -1,0 +1,44 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string orgQueryString = @"select id, first_name, last_name, email from users u where
+(id in (select user_id from organization_administrators where organization_id=@0)
+or id in (select user_id from stakeholders where organization_id=@1)
+or id in (select user_id from resources where organization_id=@2))
+and id not in (select user_id from document_users where document_id=@3) order by last_name, first_name";
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Add User to Document</h3>
+    </div>
+    <h4>Add user from organization</h4>
+    <form method="post" action="document-users?id=@Request.QueryString["id"]" data-parsley-validate>
+        <div class="form-group row">
+            <label for="ouid">Organization User</label>
+            <select class="form-control" name="ouid" id="ouid" autofocus>
+                @foreach (var orgRow in db.Query(orgQueryString, Request.QueryString["id"], Request.QueryString["id"], Request.QueryString["id"], Request.Form["did"]))
+                {
+                    <option value="@orgRow.id">@orgRow.last_name, @orgRow.first_name - @orgRow.email</option>
+                }
+            </select>
+        </div>
+        <div class="form-group row">
+            <input type="hidden" name="did" value="@Request.Form["did"]" />
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Add Organization User" title="Add"><i class="fas fa-save"></i></button>
+        </div>
+    </form>
+    <h4>Add user by email address</h4>
+    <p>Enter the email address of the user you want to authorize. The system will send an email to that address, and the user will be able to accept the invitation to view this document. The invitation will show up in the user's My Project MIS area.</p>
+    <form method="post" action="document-users?id=@Request.QueryString["id"]" data-parsley-validate>
+        <div class="form-group row">
+            <label for="uemail">Email Address</label>
+            <input type="email" class="form-control" name="uemail" id="uemail" required data-parsley-required data-parsley-type="email">
+        </div>
+        <div class="form-group row">
+            <input type="hidden" name="did" value="@Request.Form["did"]" />
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Add Email User" title="Add"><i class="fas fa-save"></i></button>
+        </div>
+    </form>
+</div>

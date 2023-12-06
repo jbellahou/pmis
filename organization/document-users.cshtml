@@ -1,0 +1,121 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add Project User":
+                try
+                {
+                    success = db.Execute("insert into document_users (document_id, user_id) values (@0, @1)", Request.Form["did"], Request.Form["puid"]);
+                    successMsg = "User added.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Add Organization User":
+                try
+                {
+                    success = db.Execute("insert into document_users (document_id, user_id) values (@0, @1)", Request.Form["did"], Request.Form["ouid"]);
+                    successMsg = "User added.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Add Email User":
+                try
+                {
+                    TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+                    DateTime newDT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+                    success = db.Execute("insert into invitations (email, user_id, document_id, invitation_type, time_sent) values (@0, @1, @2, @3, @4)", Request.Form["uemail"], WebSecurity.CurrentUserId, Request.Form["did"], "Document", newDT);
+                    successMsg = "Invitation sent.";
+                    string fromName = db.QueryValue("select concat(first_name, ' ', last_name) as full_name from users where id=@0", WebSecurity.CurrentUserId);
+                    string txtEmail = Request.Form["uemail"];
+                    string txtLink = "https://projectmis.org/mypmis/invitations";
+                    string txtBody = "<p>You have been invited by " + fromName + " to participate in Project MIS, a web-based project management system. You must be registered in the system to participate. The following link will take you to your invitations in the system. If you are not registered and logged in, you will be prompted to do so.</p><a href='" + txtLink + "'>" + txtLink + "</a>";
+                    WebMail.Send(to: txtEmail, subject: "Participate in Project MIS", body: txtBody);
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    success = db.Execute("delete from document_users where document_id=@0 and user_id=@1", Request.Form["did"], Request.Form["uid"]);
+                    successMsg = "User removed.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select du.*, email, first_name, last_name from document_users du join users u on u.id=du.user_id where document_id=@0 order by last_name";
+    string dName = db.QueryValue("select document_name from documents where id=@0", Request.Form["did"]);
+}
+
+@if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Document Users for @dName</h3>
+        <form class="pmis-detail-page-new-link" method="post" action="add-document-user?id=@Request.QueryString["id"]">
+            <input type="hidden" name="did" value="@Request.Form["did"]" />
+            <button class="btn btn-primary" type="submit" title="Add User"><i class="fas fa-plus"></i></button>
+        </form>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>User Name</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, Request.Form["did"]))
+                {
+                    <tr>
+                        <td>@row.email</td>
+                        <td>@row.first_name</td>
+                        <td>@row.last_name</td>
+                        <td>
+                            <form method="post" action="document-users?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="uid" value="@row.user_id" />
+                                <input type="hidden" name="did" value="@Request.Form["did"]" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Remove User"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

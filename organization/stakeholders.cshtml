@@ -1,0 +1,172 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        Response.AddHeader("X-XSS-Protection", "0");
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    success = db.Execute("insert into stakeholders (stakeholder_name, default_identifying, default_assessment, organization_id) values (@0, @1, @2, @3)", Request.Form["sname"], Request.Unvalidated().Form["iinfo"], Request.Unvalidated().Form["ainfo"], Request.QueryString["id"]);
+                    successMsg = "Stakeholder created.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Edit":
+                try
+                {
+                    success = db.Execute("update stakeholders set stakeholder_name=@0, default_identifying=@1, default_assessment=@2 where id=@3", Request.Form["sname"], Request.Unvalidated().Form["iinfo"], Request.Unvalidated().Form["ainfo"], Request.Form["sid"]);
+                    successMsg = "Stakeholder updated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    success = db.Execute("delete from stakeholders where id=@0", Request.Form["sid"]);
+                    successMsg = "Stakeholder deleted.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Unlink":
+                try
+                {
+                    success = db.Execute("update stakeholders set user_id=null where id=@0", Request.Form["sid"]);
+                    successMsg = "Stakeholder unlinked.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Link":
+                try
+                {
+                    TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+                    DateTime newDT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+                    var invRow = db.QuerySingle("select id, accepted from invitations where organization_id=@0 and email=@1", Request.QueryString["id"], Request.Form["semail"]);
+                    if (invRow != null)
+                    {
+                        if (invRow.accepted)
+                        {
+                            success = db.Execute("update stakeholders set user_id=@0 where id=@1", WebSecurity.GetUserId(Request.Form["semail"]), Request.Form["sid"]);
+                            successMsg = "This user previously accepted an invitation to participate in the organization. Rather than sending another invitation to participate, the user was linked to the stakeholder record.";
+                        }
+                        else
+                        {
+                            success = db.Execute("update invitations set time_sent=@0, stakeholder_id=@1 where id=@2", newDT, Request.Form["sid"], invRow.id);
+                            successMsg = "An invitation was sent to this user previously. When the user accepts the invitation, the user will be linked to the stakeholder.";
+                        }
+                    }
+                    else
+                    {
+                        success = db.Execute("insert into invitations (email, user_id, organization_id, stakeholder_id, invitation_type, time_sent) values (@0, @1, @2, @3, @4, @5)", Request.Form["semail"], WebSecurity.CurrentUserId, Request.QueryString["id"], Request.Form["sid"], "Stakeholder", newDT);
+                        successMsg = "Invitation sent.";
+                        string fromName = db.QueryValue("select concat(first_name, ' ', last_name) as full_name from users where id=@0", WebSecurity.CurrentUserId);
+                        string txtEmail = Request.Form["semail"];
+                        string txtLink = "https://projectmis.org/mypmis/invitations";
+                        string txtBody = "<p>You have been invited by " + fromName + " to participate in Project MIS, a web-based project management system. You must be registered in the system to participate. The following link will take you to your invitations in the system. If you are not registered and logged in, you will be prompted to do so.</p><a href='" + txtLink + "'>" + txtLink + "</a>";
+                        WebMail.Send(to: txtEmail, subject: "Participate in Project MIS", body: txtBody);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select s.*, email from stakeholders s left join users u on s.user_id = u.id where organization_id=@0 order by stakeholder_name";
+    }
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Stakeholders</h3>
+        <a href="add-stakeholder?id=@Request.QueryString["id"]" class="pmis-detail-page-new-link" title="New Stakeholder"><i class="fas fa-plus"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Stakeholder</th>
+                    <th>Default Identifying Information</th>
+                    <th>Default Assessment Information</th>
+                    <th>Username</th>
+                    <th>
+                    </th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, Request.QueryString["id"]))
+                {
+                    <tr>
+                        <td>@row.stakeholder_name</td>
+                        <td>@Html.Raw(row.default_identifying)</td>
+                        <td>@Html.Raw(row.default_assessment)</td>
+                        <td>@row.email</td>
+                        <td>
+                            <form method="post" action="edit-stakeholder?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="sid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" title="Edit"><i class="fas fa-edit"></i></button>
+                            </form>
+                        </td>
+                        @if (row.user_id > 0)
+                        {
+                            <td>
+                                <form method="post" action="stakeholders?id=@Request.QueryString["id"]">
+                                    <input type="hidden" name="sid" value="@row.id" />
+                                    <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Unlink" title="Unlink"><i class="fas fa-unlink"></i></button>
+                                </form>
+                            </td>
+                        }
+                        else
+                        {
+                            <td>
+                                <form method="post" action="link-stakeholder?id=@Request.QueryString["id"]">
+                                    <input type="hidden" name="sid" value="@row.id" />
+                                    <button class="btn btn-primary" type="submit" title="Link"><i class="fas fa-link"></i></button>
+                                </form>
+                            </td>
+                        }
+                        <td>
+                            <form method="post" action="stakeholders?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="sid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

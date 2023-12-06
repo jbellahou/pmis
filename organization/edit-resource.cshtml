@@ -1,0 +1,81 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string selectQueryString = "select * from resources where id=@0";
+    var row = db.QuerySingle(selectQueryString, Request.Form["rid"]);
+    string hrSel = "";
+    string matSel = "";
+    string equipSel = "";
+    string facSel = "";
+    string othSel = "";
+    string unitSel = "";
+    string hourSel = "";
+    string daySel = "";
+    string weekSel = "";
+    string monthSel = "";
+    if (row.resource_type == "Human Resource")
+    { hrSel = " Selected"; }
+    if (row.resource_type == "Material")
+    { matSel = " Selected"; }
+    if (row.resource_type == "Equipment")
+    { equipSel = " Selected"; }
+    if (row.resource_type == "Facility")
+    { facSel = " Selected"; }
+    if (row.resource_type == "Other")
+    { othSel = " Selected"; }
+    if (row.measurement == "Unit")
+    { unitSel = " Selected"; }
+    if (row.measurement == "Hour")
+    { hourSel = " Selected"; }
+    if (row.measurement == "Day")
+    { daySel = " Selected"; }
+    if (row.measurement == "Week")
+    { weekSel = " Selected"; }
+    if (row.measurement == "Month")
+    { monthSel = " Selected"; }
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Edit Resource</h3>
+    </div>
+    <form method="post" action="resources?id=@Request.QueryString["id"]" data-parsley-validate>
+        <div class="form-group row">
+            <label class="col-form-label" for="rname">Resource Name</label>
+            <input class="form-control" type="text" name="rname" id="rname autofocus" value="@row.resource_name" data-parsley-required data-parsley-maxlength="100">
+        </div>
+        <div class="form-group row">
+            <label class="col-form-label" for="rtype">Type</label>
+            <select class="form-control" name="rtype" id="rtype">
+                <option value="Human Resource"@hrSel>Human Resource</option>
+                <option value="Material"@matSel>Material</option>
+                <option value="Equipment"@equipSel>Equipment</option>
+                <option value="Facility"@facSel>Facility</option>
+                <option value="Other"@othSel>Other</option>
+            </select>
+        </div>
+        <div class="form-group row">
+            <label class="col-form-label" for="measure">Unit of Measure</label>
+            <select class="form-control" name="measure" id="measure">
+                <option value=""></option>
+                <option value="Unit"@unitSel>Unit</option>
+                <option value="Hour"@hourSel>Hour</option>
+                <option value="Day"@daySel>Day</option>
+                <option value="Week"@weekSel>Week</option>
+                <option value="Month"@monthSel>Month</option>
+            </select>
+        </div>
+        <div class="form-group row">
+            <label class="col-form-label" for="cpu">Default Cost per Unit</label>
+            <input class="form-control" type="text" name="cpu" id="cpu" value="@row.default_cost_per_unit" data-parsley-type="number">
+        </div>
+        <div class="form-group row">
+            <label class="col-form-label" for="lead">Default Lead Time (in working days)</label>
+            <input class="form-control" type="text" name="lead" id="lead" value="@row.default_lead_time" data-parsley-type="integer">
+        </div>
+        <div class="form-group row">
+            <input type="hidden" name="rid" value="@row.id" />
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Edit" title="Save"><i class="fas fa-save"></i></button>
+        </div>
+    </form>
+</div>

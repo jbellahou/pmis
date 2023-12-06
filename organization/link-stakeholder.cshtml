@@ -1,0 +1,20 @@
+﻿@{
+    Layout = "_Layout.cshtml";
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Link Stakeholder</h3>
+    </div>
+    <p>Enter the email address of the user you want to link. The system will send an email to that address, and the user will be able to accept the invitation to link to this stakeholder. The invitation will show up in the user's My Project MIS area.</p>
+    <form method="post" action="stakeholders?id=@Request.QueryString["id"]" data-parsley-validate>
+        <div class="form-group row">
+            <label for="semail">Email Address</label>
+            <input type="email" class="form-control" name="semail" id="semail" autofocus required data-parsley-required data-parsley-type="email">
+        </div>
+        <div class="form-group row">
+            <input type="hidden" name="sid" value="@Request.Form["sid"]" />
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Link" title="Link"><i class="fas fa-link"></i></button>
+        </div>
+    </form>
+</div>

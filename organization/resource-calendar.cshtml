@@ -1,0 +1,141 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add Day":
+                try
+                {
+                    success = db.Execute("insert into resource_no_work_days (resource_id, day_id) values (@0, @1)", Request.Form["rid"], Request.Form["did"]);
+                    successMsg = "Calendar updated.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Add Date":
+                try
+                {
+                    success = db.Execute("insert into resource_no_work_dates (resource_id, no_work_date) values (@0, @1)", Request.Form["rid"], Request.Form["nwdate"]);
+                    successMsg = "Calendar updated.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Remove Day":
+                try
+                {
+                    success = db.Execute("delete from resource_no_work_days where resource_id=@0 and day_id=@1", Request.Form["rid"], Request.Form["did"]);
+                    successMsg = "Calendar updated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Remove Date":
+                try
+                {
+                    success = db.Execute("delete from resource_no_work_dates where resource_id=@0 and no_work_date=@1", Request.Form["rid"], Request.Form["nwdate"]);
+                    successMsg = "Calendar updated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string resName = db.QueryValue("select resource_name from resources where id=@0", Request.Form["rid"]);
+}
+
+@if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+        <div class="container">
+            <div class="pmis-detail-page-heading">
+                <h3 class="pmis-detail-page-title">Resource Calendar for @resName</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover sticky-table">
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Status (click to toggle)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in db.Query("select d.*, isnull(nd1.day_id, 0) as did from days d left join (select nd.day_id from resource_no_work_days nd where nd.resource_id=@0) nd1 on d.id=nd1.day_id order by d.id", Request.Form["rid"]))
+                        {
+                            string status = "Non-Work Day";
+                            string postType = "Remove Day";
+                            if (row.did == 0) {
+                                status = "Work Day";
+                                postType = "Add Day";
+                            }
+                        <tr>
+                            <td>@row.day_name</td>
+                            <td>
+                                <form method="post" action="resource-calendar?id=@Request.QueryString["id"]">
+                                    <input type="hidden" name="did" value="@row.id">
+                                    <input type="hidden" name="rid" value="@Request.Form["rid"]">
+                                    <button type="submit" class="btn btn-primary" name="SaveType" value="@postType">@status</button>
+                                </form>
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <h3>Non-Work Dates</h3>
+            <div class="table-responsive">
+                <table class="table table-hover sticky-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var dateRow in db.Query("select no_work_date from resource_no_work_dates where resource_id=@0 and no_work_date>getutcdate() order by no_work_date", Request.Form["rid"]))
+                        {
+                            <tr>
+                                <td>@dateRow.no_work_date.ToString("MM/dd/yyyy")</td>
+                                <td>
+                                    <form method="post" action="resource-calendar?id=@Request.QueryString["id"]">
+                                        <input type="hidden" name="nwdate" value="@dateRow.no_work_date.ToString("MM/dd/yyyy")">
+                                        <input type="hidden" name="rid" value="@Request.Form["rid"]">
+                                        <button type="submit" class="btn btn-primary" onclick="return confirm('Are you sure?')" name="SaveType" value="Remove Date">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <form method="post" action="resource-calendar?id=@Request.QueryString["id"]" data-parsley-validate>
+                <input type="date" class="form-control" name="nwdate" id="nwdate" required data-parsley-required>
+                <input type="hidden" name="rid" value="@Request.Form["rid"]">
+                <button type="submit" class="btn btn-primary" name="SaveType" value="Add Date">Make this day a non-work date</button>
+            </form>
+        </div>

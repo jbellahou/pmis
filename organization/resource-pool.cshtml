@@ -1,0 +1,96 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    success = db.Execute("insert into resource_pools (resource_id, pool_id) values (@0, @1)", Request.Form["rid"], Request.Form["pid"]);
+                    successMsg = "Resource added.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Remove":
+                try
+                {
+                    success = db.Execute("delete from resource_pools where resource_id=@0 and pool_id=@1", Request.Form["rid"], Request.Form["pid"]);
+                    successMsg = "Resource removed.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string resName = db.QueryValue("select resource_name from resources where id=@0", Request.Form["pid"]);
+}
+
+@if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Resource Pool for @resName</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Resource</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query("select rp.*, resource_name from resource_pools rp join resources r on r.id=rp.resource_id where rp.pool_id=@0 order by resource_name", Request.Form["pid"]))
+                {
+                    <tr>
+                        <td>@row.resource_name</td>
+                        <td>
+                            <form method="post" action="resource-pool?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="rid" value="@row.resource_id">
+                                <input type="hidden" name="pid" value="@Request.Form["pid"]">
+                                <button type="submit" class="btn btn-primary" name="SaveType" value="Remove" title="Remove"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <form method="post" action="resource-pool?id=@Request.QueryString["id"]" data-parsley-validate>
+        <select class="form-control" name="rid">
+            @{ int counter = 0; }
+            @foreach (var resRow in db.Query("select resource_name, id from resources where is_pool=0 and id not in (select resource_id from resource_pools where pool_id=@0)", Request.Form["pid"]))
+            {
+                counter += 1;
+                <option value="@resRow.id">@resRow.resource_name</option>
+            }
+        </select>
+        <input type="hidden" name="pid" value="@Request.Form["pid"]">
+        @if (counter > 0)
+        {
+            <button type="submit" class="btn btn-primary" name="SaveType" value="Add" title="Add Resource to Pool"><i class="fas fa-user-plus"></i></button>
+        }
+    </form>
+</div>

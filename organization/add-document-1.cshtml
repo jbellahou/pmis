@@ -1,0 +1,17 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Add Organization Document</h3>
+    </div>
+    <div class="row">
+        <div class="col-md-6 col-lg-4">
+            <h3>Document Type</h3>
+            <div class="list-group">
+                <a class="list-group-item list-group-item-action pmis-list-button" href="add-external-doc?id=@Request.QueryString["id"]">External Document</a>
+                <a class="list-group-item list-group-item-action pmis-list-button" href="add-manual-doc?id=@Request.QueryString["id"]">Manual Document</a>
+            </div>
+            <br />
+        </div>
+    </div>
+</div>

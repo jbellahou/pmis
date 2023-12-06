@@ -1,0 +1,111 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+                    DateTime newDT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+                    var invRow = db.QuerySingle("select id, accepted from invitations where organization_id=@0 and email=@1", Request.QueryString["id"], Request.Form["aemail"]);
+                    if (invRow != null)
+                    {
+                        if (invRow.accepted)
+                        {
+                            success = db.Execute("insert into organization_administrators (user_id, organization_id) values (@0, @1)", WebSecurity.GetUserId(Request.Form["aemail"]), Request.QueryString["id"]);
+                            successMsg = "This user previously accepted an invitation to participate in the organization. Rather than sending another invitation to participate, the user was added as an administrator.";
+                            string roleName = "edit_organization_" + Request.QueryString["id"];
+                            Roles.AddUserToRole(WebSecurity.CurrentUserName, roleName);
+                        }
+                        else
+                        {
+                            success = db.Execute("update invitations set invitation_type='Organization Administrator', time_sent=@0 where id=@1", newDT, invRow.id);
+                            successMsg = "An invitation was sent to this user previously. When the user accepts the invitation, the role of administrator will be added to the user's roles.";
+                        }
+                    }
+                    else
+                    {
+                        success = db.Execute("insert into invitations (email, user_id, organization_id, invitation_type, time_sent) values (@0, @1, @2, @3, @4)", Request.Form["aemail"], WebSecurity.CurrentUserId, Request.QueryString["id"], "Organization Administrator", newDT);
+                        successMsg = "Invitation sent.";
+                        string fromName = db.QueryValue("select concat(first_name, ' ', last_name) as full_name from users where id=@0", WebSecurity.CurrentUserId);
+                        string txtEmail = Request.Form["aemail"];
+                        string txtLink = "https://projectmis.org/mypmis/invitations";
+                        string txtBody = "<p>You have been invited by " + fromName + " to participate in Project MIS, a web-based project management system. You must be registered in the system to participate. The following link will take you to your invitations in the system. If you are not registered and logged in, you will be prompted to do so.</p><a href='" + txtLink + "'>" + txtLink + "</a>";
+                        WebMail.Send(to: txtEmail, subject: "Participate in Project MIS", body: txtBody);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    success = db.Execute("delete from organization_administrators where user_id=@0 and organization_id=@1", Request.Form["uid"], Request.QueryString["id"]);
+                    string aemail = db.QueryValue("select email from users where id=@0", Request.Form["uid"]);
+                    Roles.RemoveUserFromRole(aemail, "edit_organization_" + Request.QueryString["id"]);
+                    successMsg = "Administrator deleted.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select oa.*, u.first_name, u.last_name, u.email from organization_administrators oa join users u on u.id=oa.user_id where oa.organization_id=@0 order by last_name, first_name";
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Administrators</h3>
+        <a href="add-administrator?id=@Request.QueryString["id"]" class="pmis-detail-page-new-link" title="New Administrator"><i class="fas fa-plus"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email Address</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, Request.QueryString["id"]))
+                {
+                    <tr>
+                        <td>@row.first_name @row.last_name</td>
+                        <td>@row.email</td>
+                        <td>
+                            <form method="post" action="administrators?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="uid" value="@row.user_id" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

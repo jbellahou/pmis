@@ -1,0 +1,111 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Resend":
+                try
+                {
+                    TimeZoneInfo targetZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+                    DateTime newDT = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, targetZone);
+                    success = db.Execute("update invitations set time_sent=@0 where id=@1", newDT, Request.Form["iid"]);
+                    successMsg = "Invitation sent.";
+                    string fromName = db.QueryValue("select concat(first_name, ' ', last_name) as full_name from users where id=@0", WebSecurity.CurrentUserId);
+                    string txtEmail = Request.Form["iemail"];
+                    string txtLink = "https://projectmis.org/mypmis/invitations";
+                    string txtBody = "<p>You have been invited by " + fromName + " to participate in Project MIS, a web-based project management system. You must be registered in the system to participate. The following link will take you to your invitations in the system. If you are not registered and logged in, you will be prompted to do so.</p><a href='" + txtLink + "'>" + txtLink + "</a>";
+                    WebMail.Send(to: txtEmail, subject: "Participate in Project MIS", body: txtBody);
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    success = db.Execute("delete from invitations where id=@0", Request.Form["iid"]);
+                    successMsg = "Invitation deleted.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select i.*, concat(first_name, ' ', last_name) as full_name, r.resource_name, s.stakeholder_name from invitations i join users u on u.id=i.user_id left join stakeholders s on s.id=i.stakeholder_id left join resources r on r.id=i.resource_id where i.organization_id=@0 order by time_sent desc";
+}
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Invitations</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Sent</th>
+                    <th>Sent to</th>
+                    <th>Invited by</th>
+                    <th>Administrator</th>
+                    <th>Resource</th>
+                    <th>Stakeholder</th>
+                    <th>Accepted</th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, Request.QueryString["id"]))
+                {
+                    string adminVal = "No";
+                    if (row.invitation_type == "Organization Administrator") { adminVal = "Yes"; }
+                <tr>
+                    <td>@row.time_sent</td>
+                    <td>@row.email</td>
+                    <td>@row.full_name</td>
+                    <td>@adminVal</td>
+                    <td>@row.resource_name</td>
+                    <td>@row.stakeholder_name</td>
+                    <td>@row.time_accepted</td>
+                    <td>
+                        @if (!row.accepted)
+                        {
+                        <form method="post" action="invitations?id=@Request.QueryString["id"]">
+                            <input type="hidden" name="iid" value="@row.id" />
+                            <button class="btn btn-primary" type="submit" name="SaveType" value="Resend" title="Resend Invitation"><i class="fas fa-envelope"></i></button>
+                        </form>
+                        }
+                    </td>
+                    <td>
+                        @if (!row.accepted)
+                        {
+                            <form method="post" action="invitations?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="iid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

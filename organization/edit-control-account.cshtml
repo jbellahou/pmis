@@ -1,0 +1,26 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string selectQueryString = "select id, control_account_name, description from control_accounts where id=@0";
+    var row = db.QuerySingle(selectQueryString, Request.Form["caid"]);
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Edit Control Account</h3>
+    </div>
+    <form method="post" action="control-accounts?id=@Request.QueryString["id"]" data-parsley-validate>
+        <div class="form-group row">
+            <label class="col-form-label" for="aname">Name</label>
+            <input class="form-control" type="text" name="aname" id="aname" autofocus value="@row.control_account_name" required data-parsley-required />
+        </div>
+        <div class="form-group row">
+            <label class="col-form-label col-lg-12" for="desc">Description</label>
+            <textarea class="summernote" name="desc" id="desc">@row.description</textarea>
+        </div>
+        <div class="form-group row">
+            <input type="hidden" name="caid" value="@row.id" />
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Edit" title="Save"><i class="fas fa-save"></i></button>
+        </div>
+    </form>
+</div>

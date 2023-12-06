@@ -1,0 +1,96 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Add":
+                try
+                {
+                    success = db.Execute("insert into program_projects (program_id, project_id) values (@0, @1)", Request.Form["pgid"], Request.Form["pid"]);
+                    successMsg = "Project added.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Remove":
+                try
+                {
+                    success = db.Execute("delete from program_projects where program_id=@0 and project_id=@1", Request.Form["pgid"], Request.Form["pid"]);
+                    successMsg = "Project removed.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string resName = db.QueryValue("select program_name from programs where id=@0", Request.Form["pgid"]);
+}
+
+@if (!String.IsNullOrEmpty(Request.Form["SaveType"]))
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Projects for @resName</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query("select pp.*, project_name from program_projects pp join projects p on p.id=pp.project_id where pp.program_id=@0 order by project_name", Request.Form["pgid"]))
+                {
+                    <tr>
+                        <td>@row.project_name</td>
+                        <td>
+                            <form method="post" action="program-projects?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="pid" value="@row.project_id">
+                                <input type="hidden" name="pgid" value="@Request.Form["pgid"]">
+                                <button type="submit" class="btn btn-primary" name="SaveType" value="Remove" title="Remove"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <form method="post" action="program-projects?id=@Request.QueryString["id"]" data-parsley-validate>
+        <select class="form-control" name="pid">
+            @{ int counter = 0; }
+            @foreach (var projRow in db.Query("select project_name, id from projects where id not in (select project_id from program_projects where program_id=@0)", Request.Form["pgid"]))
+            {
+                counter += 1;
+                <option value="@projRow.id">@projRow.project_name</option>
+            }
+        </select>
+        <input type="hidden" name="pgid" value="@Request.Form["pgid"]">
+        @if (counter > 0)
+        {
+            <button type="submit" class="btn btn-primary" name="SaveType" value="Add" title="Add Project to Program"><i class="fas fa-plus-circle"></i></button>
+        }
+    </form>
+</div>

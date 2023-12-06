@@ -1,0 +1,141 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        Response.AddHeader("X-XSS-Protection", "0");
+        switch (Request.Form["SaveType"])
+        {
+            case "Save Sort Order":
+                try
+                {
+                    char[] delims = { ',' };
+                    string[] items = Request.Form["ids"].Split(delims);
+                    int counter = 0;
+                    foreach (string item in items)
+                    {
+                        if (item != "undefined")
+                        {
+                            counter += 1;
+                            db.Execute("update control_accounts set display_order=@0 where id=@1", counter, item);
+                        }
+                    }
+                    success = 1;
+                    successMsg = "Sort order saved.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Add":
+                try
+                {
+                    success = db.Execute("insert into control_accounts (control_account_name, description, organization_id) values (@0, @1, @2)", Request.Form["aname"], Request.Unvalidated().Form["desc"], Request.QueryString["id"]);
+                    successMsg = "Control account created.";
+                }
+                catch (Exception ex)
+                {
+                    success = 0;
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Edit":
+                try
+                {
+                    success = db.Execute("update control_accounts set control_account_name=@0, description=@1 where id=@2", Request.Form["aname"], Request.Unvalidated().Form["desc"], Request.Form["caid"]);
+                    successMsg = "Control account updated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Delete":
+                try
+                {
+                    success = db.Execute("delete from control_accounts where id=@0", Request.Form["caid"]);
+                    successMsg = "Control account deleted.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+            case "Archive":
+                try
+                {
+                    success = db.Execute("update control_accounts set is_active=0 where id=@0", Request.Form["caid"]);
+                    successMsg = "Control account archived.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select id, control_account_name, description from control_accounts where is_active=1 and organization_id=@0 order by display_order";
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Control Accounts</h3>
+        <a href="add-control-account?id=@Request.QueryString["id"]" class="pmis-detail-page-new-link" title="New Control Account"><i class="fas fa-plus"></i></a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th colspan="2"><a href="inactive-control-accounts?id=@Request.QueryString["id"]">Inactive Control Accounts</a></th>
+                    <th><a href="change-control-account-order?id=@Request.QueryString["id"]">Sort Order</a></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, Request.QueryString["id"]))
+                {
+                    <tr>
+                        <td>@row.control_account_name</td>
+                        <td>@Html.Raw(row.description)</td>
+                        <td>
+                            <form method="post" action="edit-control-account?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="caid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" title="Edit"><i class="fas fa-edit"></i></button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="post" action="control-accounts?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="caid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" name="SaveType" value="Archive" title="Archive"><i class="fas fa-archive"></i></button>
+                            </form>
+                        </td>
+                        <td>
+                            <form method="post" action="control-accounts?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="caid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" onclick="return confirm('Are you sure?')" name="SaveType" value="Delete" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

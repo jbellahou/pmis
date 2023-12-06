@@ -1,0 +1,70 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string successMsg = "";
+    string errMsg = "Unknown error.";
+    int success = 0;
+    if (IsPost)
+    {
+        switch (Request.Form["SaveType"])
+        {
+            case "Activate":
+                try
+                {
+                    success = db.Execute("update projects set is_active=1 where id=@0", Request.Form["pid"]);
+                    successMsg = "Project activated.";
+                }
+                catch (Exception ex)
+                {
+                    errMsg = ex.Message.ToString();
+                }
+                break;
+        }
+    }
+    string selectQueryString = "select id, project_name, description from projects where is_active=0 and organization_id=@0 order by project_name";
+}
+
+@if (IsPost)
+{
+    if (success > 0)
+    {
+        <div class="alert alert-success" role="alert"><strong>@successMsg</strong></div>
+    }
+    else
+    {
+        <div class="alert alert-danger" role="alert"><strong>Error: </strong>@errMsg</div>
+    }
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Inactive Projects</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Description</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(selectQueryString, Request.QueryString["id"]))
+                {
+                    <tr>
+                        <td>@row.project_name</td>
+                        <td>@Html.Raw(row.description)</td>
+                        <td>
+                            <form method="post" action="inactive-projects?id=@Request.QueryString["id"]">
+                                <input type="hidden" name="pid" value="@row.id" />
+                                <button class="btn btn-primary" type="submit" name="SaveType" value="Activate" title="Activate">Activate</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

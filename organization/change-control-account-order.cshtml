@@ -1,0 +1,32 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string selectQueryString = "select id, control_account_name from control_accounts where organization_id=@0 order by display_order";
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Change Sort Order</h3>
+    </div>
+    <div class="row">
+        <div class="col-xs-12">
+            <ul id="sortable" class="list-group">
+                @foreach (var row in db.Query(selectQueryString, Request.QueryString["id"]))
+                {
+                    <li class="ui-state-default list-group-item" id="@row.id">@row.control_account_name</li>
+                }
+            </ul>
+            <br />
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-xs-12 text-center">
+            <form method="post" action="control-accounts?id=@Request.QueryString["id"]" id="sort-form">
+                <input type="hidden" name="ids" id="ids" value="undefined" />
+                <input type="hidden" value="Save Sort Order" name="SaveType" />
+                <button class="btn btn-primary" onclick="set_sort_order(); return false">Save Changes</button>
+            </form>
+        </div>
+    </div>
+</div>

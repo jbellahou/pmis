@@ -1,0 +1,30 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    string selectQueryString = "select * from stakeholders where id=@0";
+    var row = db.QuerySingle(selectQueryString, Request.Form["sid"]);
+}
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Edit Stakeholder</h3>
+    </div>
+    <form method="post" action="stakeholders?id=@Request.QueryString["id"]" data-parsley-validate>
+        <div class="form-group row">
+            <label for="sname" class="col-form-label">Name</label>
+            <input class="form-control" type="text" name="sname" id="sname" autofocus required value="@row.stakeholder_name" data-parsley-required />
+        </div>
+        <div class="form-group row">
+            <label for="iinfo" class="col-form-label col-lg-12">Default Identifying Information (contact information, department, role in the project, etc)</label>
+            <textarea class="summernote" name="iinfo" id="iinfo">@row.default_identifying</textarea>
+        </div>
+        <div class="form-group row">
+            <label for="ainfo" class="col-form-label col-lg-12">Default Assessment Information (power and influence, expectations, key requirements, and when stakeholder involvement is most critical)</label>
+            <textarea class="summernote" name="ainfo" id="ainfo">@row.default_assessment</textarea>
+        </div>
+        <div class="form-group row">
+            <input type="hidden" name="sid" value="@row.id" />
+            <button class="btn btn-primary" type="submit" name="SaveType" value="Edit" title="Save"><i class="fas fa-save"></i></button>
+        </div>
+    </form>
+</div>
