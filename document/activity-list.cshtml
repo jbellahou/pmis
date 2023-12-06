@@ -1,0 +1,47 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    var projRow = db.QuerySingle("select project_name, isnull((select max(level) from activities a where a.project_id=p.id), 0) as max_level from projects p join project_documents pd on pd.project_id=p.id where pd.document_id=@0", Request.QueryString["id"]);
+    int cols = projRow.max_level + 1;
+    string wbsSelect = "select display_name, level, final_order from wbs_items i join project_documents pd on pd.project_id=i.project_id where pd.document_id=@0 order by final_order";
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Activity List</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th colspan="@cols">1 @projRow.project_name</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var wbsRow in db.Query(wbsSelect, Request.QueryString["id"]))
+                {
+                    int nameSpan = cols - wbsRow.level;
+                    <tr>
+                        @for (int i = 0; i < wbsRow.level; i++)
+                        {
+                            <td></td>
+                        }
+                        <td colspan="@nameSpan">@wbsRow.display_name (WBS)</td>
+                    </tr>
+                    foreach (var row in db.Query("select display_name, level from activities a join project_documents pd on pd.project_id=a.project_id where wbs_final_order=@0 and pd.document_id=@1 order by final_order", wbsRow.final_order, Request.QueryString["id"]))
+                    {
+                        int actNameSpan = cols - row.level;
+                        <tr>
+                            @for (int i = 0; i < row.level; i++)
+                            {
+                                <td></td>
+                            }
+                            <td colspan="@actNameSpan">@row.display_name</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

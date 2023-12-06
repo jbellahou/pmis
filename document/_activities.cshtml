@@ -1,0 +1,20 @@
+﻿@{
+    int indentLevel = Page.indentLevel + 1;
+    int nameSpan = Page.columns - indentLevel;
+    int levelCount = 0;
+    var db = Database.Open("pmis");
+}
+
+@foreach (var row in db.Query("select a.id, display_name, final_order from activities a join project_documents pd on pd.project_id=a.project_id where pd.document_id=@0 and isnull(wbs_item_id, 0)=@1 and isnull(activity_group_id, 0)=@2 order by final_order", Request.QueryString["id"], Page.wbsId, Page.parentId))
+{
+    levelCount += 1;
+    string itemLevel = Page.currentLevel + "." + levelCount;
+    <tr>
+        @for (int i = 0; i < indentLevel; i++)
+        {
+            <td></td>
+        }
+        <td colspan="@nameSpan">@row.display_name</td>
+    </tr>
+    @RenderPage("~/document/_activities.cshtml", new { wbsId = 0, parentId = row.id, currentLevel = itemLevel, indentLevel = indentLevel, columns = Page.columns })
+}

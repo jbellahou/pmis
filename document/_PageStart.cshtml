@@ -1,0 +1,29 @@
+﻿@{
+    WebSecurity.RequireAuthenticatedUser();
+    bool isAuth = false;
+    var db = Database.Open("pmis");
+    int uid = db.QueryValue("select isnull((select user_id from document_users where document_id=@0 and user_id=@1), 0)", Request.QueryString["id"], WebSecurity.CurrentUserId);
+    if (uid > 0) { isAuth = true; }
+    if (!isAuth)
+    {
+        foreach (var row in db.Query("select project_id from project_documents where document_id=@0", Request.QueryString["id"]))
+        {
+            if (!Context.User.IsInRole("edit_project_" + row.project_id.ToString()))
+            {
+                int orgId = db.QueryValue("select organization_id from projects where id=@0", row.project_id);
+                if (Context.User.IsInRole("edit_organization_" + orgId.ToString()))
+                {
+                    isAuth = true;
+                }
+            }
+            else
+            {
+                isAuth = true;
+            }
+        }
+    }
+    if (!isAuth)
+    {
+        Response.Redirect("~/account/unauthorized");
+    }
+}

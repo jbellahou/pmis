@@ -1,0 +1,55 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    var projRow = db.QuerySingle("select project_name, isnull((select max(level) from wbs_items w where w.project_id=p.id), 0) as max_level, ss.* from projects p left join scope_statements ss on ss.project_id=p.id join project_documents pd on pd.project_id=p.id where pd.document_id=@0", Request.QueryString["id"]);
+    int cols = projRow.max_level + 1;
+    string wbsSelect = "select display_name, i.description, control_account_name, level from wbs_items i left join control_accounts ca on ca.id=i.control_account_id join project_documents pd on pd.project_id=i.project_id where pd.document_id=@0 order by final_order";
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Scope Baseline</h3>
+    </div>
+    @if (!String.IsNullOrEmpty(projRow.id))
+    {
+        <h4>Project Scope Statement</h4>
+        <h5>Product Scope</h5>
+        @Html.Raw(projRow.product_scope)
+        <h5>Deliverables</h5>
+        @Html.Raw(projRow.deliverables)
+        <h5>Acceptance Criteria</h5>
+        @Html.Raw(projRow.acceptance_criteria)
+        <h5>Project Exclusions</h5>
+        @Html.Raw(projRow.project_exclusions)
+    }
+    <h4>WBS</h4>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th colspan="@cols">1 @projRow.project_name</th>
+                    <th>Description</th>
+                    <th>Control Account</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query(wbsSelect, Request.QueryString["id"]))
+                {
+                    int nameSpan = cols - row.level;
+                    <tr>
+                        @for (int i = 0; i < row.level; i++)
+                        {
+                            <td></td>
+                        }
+                        <td colspan="@nameSpan">@row.display_name</td>
+                        <td>@Html.Raw(row.description)</td>
+                        <td>
+                            @row.control_account_name
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

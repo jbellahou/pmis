@@ -1,0 +1,20 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    var row = db.QuerySingle("select ss.* from scope_statements ss join project_documents pd on pd.project_id=ss.project_id where pd.document_id=@0", Request.QueryString["id"]);
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Project Scope Statement</h3>
+    </div>
+    <h4>Product Scope</h4>
+    @Html.Raw(row.product_scope)
+    <h4>Deliverables</h4>
+    @Html.Raw(row.deliverables)
+    <h4>Acceptance Criteria</h4>
+    @Html.Raw(row.acceptance_criteria)
+    <h4>Project Exclusions</h4>
+    @Html.Raw(row.project_exclusions)
+</div>

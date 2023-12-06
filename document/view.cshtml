@@ -1,0 +1,15 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    var row = db.QuerySingle("select document_name, document_text from documents d join manual_documents md on md.id=d.id where d.id=@0", Request.QueryString["id"]);
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">@row.document_name</h3>
+    </div>
+    <div class="row">
+        @Html.Raw(row.document_text)
+    </div>
+</div>

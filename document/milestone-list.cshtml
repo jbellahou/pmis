@@ -1,0 +1,32 @@
+﻿@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Milestone List</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover sticky-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in db.Query("select display_name, description, baseline_finish from activities a join project_documents pd on pd.project_id=a.project_id where pd.document_id=@0 and a.activity_type='Milestone' order by final_order", Request.QueryString["id"]))
+                {
+                <tr>
+                    <td>@row.display_name</td>
+                    <td>@Html.Raw(row.description)</td>
+                    <td>@row.baseline_finish</td>
+                </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

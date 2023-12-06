@@ -1,0 +1,110 @@
+﻿@using System.Globalization;
+@{Layout = "_Layout.cshtml";}
+
+@{
+    var db = Database.Open("pmis");
+    int cid = db.QueryValue("select c.id from charters c join project_documents pd on pd.project_id=c.project_id where pd.document_id=@0", Request.QueryString["id"]);
+    var basicRow = db.QuerySingle("select * from charters where id=@0", cid);
+    CultureInfo ci = new CultureInfo("en-us");
+}
+
+<div class="container">
+    <div class="pmis-detail-page-heading">
+        <h3 class="pmis-detail-page-title">Project Charter</h3>
+    </div>
+    <div class="row pmis-confirm-row">
+        <h4>Basic Charter Information</h4>
+        <h5>Purpose</h5>
+        @Html.Raw(basicRow.purpose)
+        <h5>Description</h5>
+        @Html.Raw(basicRow.description)
+        <h5>Approval Criteria</h5>
+        @Html.Raw(basicRow.approval_criteria)
+        <h5>Budget</h5>
+        @basicRow.budget.ToString("C", ci)
+    </div>
+    <div class="row pmis-confirm-row">
+        <h4>Charter Objectives</h4>
+        <div class="table-responsive">
+            <table class="table table-hover sticky-table">
+                <thead>
+                    <tr>
+                        <th>Objective</th>
+                        <th>Measurement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var objRow in db.Query("select objective, measurement from charter_objectives where charter_id=@0", cid))
+                    {
+                        <tr>
+                            <td>@Html.Raw(objRow.objective)</td>
+                            <td>@Html.Raw(objRow.measurement)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="row pmis-confirm-row">
+        <h4>Charter Requirements</h4>
+        <div class="table-responsive">
+            <table class="table table-hover sticky-table">
+                <thead>
+                    <tr>
+                        <th>Requirement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var reqRow in db.Query("select requirement from charter_requirements where charter_id=@0", cid))
+                    {
+                        <tr>
+                            <td>@Html.Raw(reqRow.requirement)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="row pmis-confirm-row">
+        <h4>Charter Milestones</h4>
+        <div class="table-responsive">
+            <table class="table table-hover sticky-table">
+                <thead>
+                    <tr>
+                        <th>Milestone</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var mileRow in db.Query("select milestone, milestone_date from charter_milestones where charter_id=@0", cid))
+                    {
+                        <tr>
+                            <td>@mileRow.milestone</td>
+                            <td>@mileRow.milestone_date.ToString("MM/dd/yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="row pmis-confirm-row">
+        <h4>Charter Risks</h4>
+        <div class="table-responsive">
+            <table class="table table-hover sticky-table">
+                <thead>
+                    <tr>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var riskRow in db.Query("select risk from charter_risks where charter_id=@0", cid))
+                    {
+                        <tr>
+                            <td>@Html.Raw(riskRow.risk)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
