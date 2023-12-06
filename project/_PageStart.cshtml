@@ -1,0 +1,32 @@
+﻿@{
+    WebSecurity.RequireAuthenticatedUser();
+    if (Session["edit_project_" + Request.QueryString["id"]] != null)
+    {
+        if (!(bool)Session["edit_project_" + Request.QueryString["id"]])
+        {
+            if (!Context.User.IsInRole("edit_project_" + Request.QueryString["id"]))
+            {
+                var db = Database.Open("pmis");
+                int orgId = db.QueryValue("select organization_id from projects where id=@0", Request.QueryString["id"]);
+                if (!Context.User.IsInRole("edit_organization_" + orgId.ToString()))
+                {
+                    Response.Redirect("~/account/unauthorized");
+                }
+            }
+        }
+    }
+    else
+    {
+        Session["edit_project_" + Request.QueryString["id"]] = true;
+        if (!Context.User.IsInRole("edit_project_" + Request.QueryString["id"]))
+        {
+            var db = Database.Open("pmis");
+            int orgId = db.QueryValue("select organization_id from projects where id=@0", Request.QueryString["id"]);
+            if (!Context.User.IsInRole("edit_organization_" + orgId.ToString()))
+            {
+                Session["edit_project_" + Request.QueryString["id"]] = false;
+                Response.Redirect("~/account/unauthorized");
+            }
+        }
+    }
+}
